@@ -18,6 +18,8 @@
 #ifdef LIMBOAI_MODULE
 #include "core/config/engine.h"
 #include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
+#include "core/object/method_bind.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
@@ -114,8 +116,47 @@ BT::Status BTCallMethod::_tick(double p_delta) {
 		}
 	}
 
+	// Validate the argument count and types against the method's signature before
+	// calling it. This check is normally performed by the engine's method-binding
+	// call dispatch, but both the count and type validation are compiled out in
+	// non-debug (release) builds. Skipping the count check can cause an
+	// out-of-bounds read (crash) here when calling a natively bound method with
+	// too few arguments and no default values to fall back on, so we bail out
+	// early in that case. Skipping the type check merely lets the method silently
+	// succeed with a bad/coerced value instead of failing as expected, so (to
+	// match the engine's own debug-build behavior) we still perform the call but
+	// treat the task as failed afterwards.
+	const MethodBind *mb = ClassDB::get_method(obj->get_class_name(), method);
+	bool has_invalid_arg_type = false;
+	int invalid_arg_index = -1;
+	Variant::Type invalid_arg_expected_type = Variant::NIL;
+	Variant::Type invalid_arg_actual_type = Variant::NIL;
+	if (mb) {
+		int min_argcount = mb->get_argument_count() - mb->get_default_argument_count();
+		if (argument_count < min_argcount) {
+			ERR_FAIL_V_MSG(FAILURE, vformat("BTCallMethod: Too few arguments calling method: %s. Expected at least %d, got %d.", method, min_argcount, argument_count));
+		}
+		if (argument_count > mb->get_argument_count()) {
+			ERR_FAIL_V_MSG(FAILURE, vformat("BTCallMethod: Too many arguments calling method: %s. Expected at most %d, got %d.", method, mb->get_argument_count(), argument_count));
+		}
+		for (int i = 0; i < argument_count; i++) {
+			Variant::Type expected_type = mb->get_argument_type(i);
+			Variant::Type actual_type = argptrs[i]->get_type();
+			if (expected_type != Variant::NIL && !Variant::can_convert_strict(actual_type, expected_type)) {
+				has_invalid_arg_type = true;
+				invalid_arg_index = i;
+				invalid_arg_expected_type = expected_type;
+				invalid_arg_actual_type = actual_type;
+				break;
+			}
+		}
+	}
+
 	Callable::CallError ce;
 	result = obj->callp(method, argptrs, argument_count, ce);
+	if (has_invalid_arg_type) {
+		ERR_FAIL_V_MSG(FAILURE, vformat("BTCallMethod: Invalid argument type calling method: %s. Argument %d expected %s, got %s.", method, invalid_arg_index, Variant::get_type_name(invalid_arg_expected_type), Variant::get_type_name(invalid_arg_actual_type)));
+	}
 	if (ce.error != Callable::CallError::CALL_OK) {
 		ERR_FAIL_V_MSG(FAILURE, "BTCallMethod: Error calling method: " + Variant::get_call_error_text(obj, method, argptrs, argument_count, ce) + ".");
 	}

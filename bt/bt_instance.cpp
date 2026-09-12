@@ -82,7 +82,7 @@ bool BTInstance::get_monitor_performance() const {
 
 void BTInstance::register_with_debugger() {
 #ifdef DEBUG_ENABLED
-	if (LimboDebugger::get_singleton()->is_active()) {
+	if (LimboDebugger::get_singleton() && LimboDebugger::get_singleton()->is_active()) {
 		LimboDebugger::get_singleton()->register_bt_instance(get_instance_id());
 	}
 #endif
