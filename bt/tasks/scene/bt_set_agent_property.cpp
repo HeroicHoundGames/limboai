@@ -16,6 +16,7 @@
 #ifdef LIMBOAI_MODULE
 #include "core/config/engine.h"
 #include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
@@ -86,6 +87,18 @@ BT::Status BTSetAgentProperty::_tick(double p_delta) {
 	}
 
 #ifdef LIMBOAI_MODULE
+	// Validate the value's type against the property's declared type before setting
+	// it. Object::set() dispatches to the property's setter MethodBind, whose
+	// argument type validation is compiled out in non-debug (release) builds (see
+	// core/variant/binder_common.h), so an incompatible value would otherwise be
+	// silently accepted (and often mangled by an implicit conversion) instead of
+	// causing this task to fail as expected.
+	PropertyInfo pinfo;
+	if (ClassDB::get_property_info(get_agent()->get_class_name(), property, &pinfo) &&
+			pinfo.type != Variant::NIL && !Variant::can_convert_strict(result.get_type(), pinfo.type)) {
+		ERR_FAIL_V_MSG(FAILURE, vformat("BTSetAgentProperty: Invalid value type for property \"%s\". Expected %s, got %s.", property, Variant::get_type_name(pinfo.type), Variant::get_type_name(result.get_type())));
+	}
+
 	get_agent()->set(property, result, &r_valid);
 	ERR_FAIL_COND_V_MSG(!r_valid, FAILURE, vformat("BTSetAgentProperty: Couldn't set property \"%s\" with value \"%s\"", property, result));
 #elif LIMBOAI_GDEXTENSION
