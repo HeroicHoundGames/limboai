@@ -121,7 +121,16 @@ TEST_CASE("[Modules][LimboAI] BTEvaluateExpression") {
 				input_values.push_back(memnew(BBVariant("wrong data type")));
 				ee->set_input_values(input_values);
 				ERR_PRINT_OFF;
+#ifdef DEBUG_ENABLED
+				// Argument type validation (Variant's VariantCasterAndValidate, used by
+				// bound method calls) only exists in DEBUG_ENABLED builds. In release
+				// builds it's compiled out for performance, so the call is still made
+				// with the (silently coerced) wrong-type argument and reports success.
+				// This matches the engine's own by-design debug/release behavior split.
 				CHECK(ee->execute(0.01666) == BTTask::FAILURE);
+#else
+				CHECK(ee->execute(0.01666) == BTTask::SUCCESS);
+#endif // DEBUG_ENABLED
 				ERR_PRINT_ON;
 				CHECK(callback_counter->num_callbacks == 1);
 			}
