@@ -85,7 +85,13 @@ void BTCooldown::_chill() {
 }
 
 void BTCooldown::_on_timeout() {
-	get_blackboard()->set_var(cooldown_state_var, false);
+	// `_on_timeout` is exposed to scripting (bound via ClassDB so it can be used as a
+	// SceneTreeTimer callable), so it can be invoked directly on a task that was never
+	// `_setup()` (e.g. `BTCooldown.new()._on_timeout()`), in which case there is no
+	// blackboard yet.
+	if (get_blackboard().is_valid()) {
+		get_blackboard()->set_var(cooldown_state_var, false);
+	}
 	timer.unref();
 }
 
