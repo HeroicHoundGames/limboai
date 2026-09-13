@@ -25,7 +25,10 @@ Array BehaviorTreeData::serialize(const Ref<BTInstance> &p_instance) {
 
 	// Flatten tree into list depth first
 	List<Ref<BTTask>> stack;
-	stack.push_back(p_instance->get_root_task());
+	Ref<BTTask> root_task = p_instance->get_root_task();
+	if (root_task.is_valid()) {
+		stack.push_back(root_task);
+	}
 	while (stack.size()) {
 		Ref<BTTask> task = stack.front()->get();
 		stack.pop_front();
@@ -94,7 +97,10 @@ Ref<BehaviorTreeData> BehaviorTreeData::create_from_bt_instance(const Ref<BTInst
 
 	// Flatten tree into list depth first
 	List<Ref<BTTask>> stack;
-	stack.push_back(p_bt_instance->get_root_task());
+	Ref<BTTask> root_task = p_bt_instance->get_root_task();
+	if (root_task.is_valid()) {
+		stack.push_back(root_task);
+	}
 	while (stack.size()) {
 		Ref<BTTask> task = stack.front()->get();
 		stack.pop_front();
