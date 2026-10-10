@@ -1986,8 +1986,9 @@ void LimboAIEditorPlugin::_notification(int p_notification) {
 			// closing, in which case the dock is freed with the editor's scene tree.
 			if (limbo_ai_dock) {
 				remove_dock(limbo_ai_dock);
-				memdelete(limbo_ai_dock);
+				memdelete(limbo_ai_dock); // Also frees limbo_ai_editor, which is a child of the dock.
 				limbo_ai_dock = nullptr;
+				limbo_ai_editor = nullptr;
 			}
 		} break;
 	}
@@ -2009,7 +2010,9 @@ void LimboAIEditorPlugin::get_window_layout(Ref<ConfigFile> p_configuration) {
 #elif LIMBOAI_GDEXTENSION
 void LimboAIEditorPlugin::_get_window_layout(const Ref<ConfigFile> &p_configuration) {
 #endif
-	limbo_ai_editor->get_window_layout(p_configuration);
+	if (limbo_ai_editor) {
+		limbo_ai_editor->get_window_layout(p_configuration);
+	}
 }
 
 #ifdef LIMBOAI_MODULE
@@ -2017,7 +2020,9 @@ void LimboAIEditorPlugin::set_window_layout(Ref<ConfigFile> p_configuration) {
 #elif LIMBOAI_GDEXTENSION
 void LimboAIEditorPlugin::_set_window_layout(const Ref<ConfigFile> &p_configuration) {
 #endif
-	limbo_ai_editor->set_window_layout(p_configuration);
+	if (limbo_ai_editor) {
+		limbo_ai_editor->set_window_layout(p_configuration);
+	}
 }
 
 #ifdef LIMBOAI_MODULE
@@ -2026,7 +2031,7 @@ void LimboAIEditorPlugin::edit(Object *p_object) {
 void LimboAIEditorPlugin::_edit(Object *p_object) {
 #endif
 	Ref<BehaviorTree> bt = Object::cast_to<BehaviorTree>(p_object);
-	if (bt.is_valid()) {
+	if (bt.is_valid() && limbo_ai_editor) {
 		limbo_ai_editor->edit_bt(bt);
 	}
 }
@@ -2047,7 +2052,9 @@ void LimboAIEditorPlugin::save_external_data() {
 #elif LIMBOAI_GDEXTENSION
 void LimboAIEditorPlugin::_save_external_data() {
 #endif
-	limbo_ai_editor->save_all(true);
+	if (limbo_ai_editor) {
+		limbo_ai_editor->save_all(true);
+	}
 }
 
 LimboAIEditorPlugin::LimboAIEditorPlugin() {
